@@ -45,7 +45,7 @@ export function createTask(
   return {
     id: crypto.randomUUID(),
     title: sanitize(title.trim()).slice(0, 50),
-    description: sanitize(description.trim()).slice(0, 200),
+    description: sanitize(description.trim()).slice(0, 1000),
     completed: false,
     scheduledTime,
     createdAt: Date.now(),

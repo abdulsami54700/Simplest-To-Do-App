@@ -1,9 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    --background: 210 40% 96.1%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 93%;
+    --secondary-foreground: 215.4 16.3% 46.9%;
+
+    --muted: 210 40% 93%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 142.1 70.6% 45.3%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214.3 31.8% 85%;
+    --input: 214.3 31.8% 85%;
+    --ring: 142.1 70.6% 45.3%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 210 40% 96.1%;
+    --sidebar-foreground: 222.2 47.4% 11.2%;
+    --sidebar-primary: 142.1 70.6% 45.3%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 93%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 85%;
+    --sidebar-ring: 142.1 70.6% 45.3%;
+  }
+
+  .dark {
     --background: 222.2 47.4% 11.2%;
     --foreground: 0 0% 100%;
 
@@ -32,8 +75,6 @@
     --input: 217.2 32.6% 25%;
     --ring: 142.1 70.6% 45.3%;
 
-    --radius: 1rem;
-
     --sidebar-background: 222.2 47.4% 11.2%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 142.1 70.6% 45.3%;
@@ -52,7 +93,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

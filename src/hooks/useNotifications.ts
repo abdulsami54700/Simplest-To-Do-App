@@ -22,7 +22,11 @@ export function useNotifications(tasks: Task[], setTasks: React.Dispatch<React.S
       setTasks((prev) => {
         const updated = prev.map((t) => {
           if (t.scheduledTime && !t.completed && !t.notified && now >= t.scheduledTime) {
-            new Notification(t.title, { body: t.description || "Task reminder" });
+            new Notification("You have a task: " + t.title, {
+              body: t.description || "Task reminder",
+              icon: "/icon-192.png",
+              tag: t.id,
+            });
             changed = true;
             return { ...t, notified: true };
           }
@@ -31,7 +35,31 @@ export function useNotifications(tasks: Task[], setTasks: React.Dispatch<React.S
         if (changed) saveTasks(updated);
         return changed ? updated : prev;
       });
-    }, 60_000);
+    }, 30_000); // Check every 30 seconds for more responsive notifications
+
+    // Also check immediately on mount
+    const checkNow = () => {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const now = Date.now();
+      let changed = false;
+      setTasks((prev) => {
+        const updated = prev.map((t) => {
+          if (t.scheduledTime && !t.completed && !t.notified && now >= t.scheduledTime) {
+            new Notification("You have a task: " + t.title, {
+              body: t.description || "Task reminder",
+              icon: "/icon-192.png",
+              tag: t.id,
+            });
+            changed = true;
+            return { ...t, notified: true };
+          }
+          return t;
+        });
+        if (changed) saveTasks(updated);
+        return changed ? updated : prev;
+      });
+    };
+    checkNow();
 
     return () => clearInterval(interval);
   }, [tasks, setTasks]);
