@@ -53,6 +53,8 @@ export default function AddTaskModal({ open, onClose, onSave }: Props) {
               Title *
             </label>
             <input
+              id="add-task-title"
+              name="title"
               type="text"
               maxLength={50}
               value={title}
