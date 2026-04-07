@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 import { Task } from "@/lib/tasks";
 import { format } from "date-fns";
 import { X, Clock, CalendarDays, CheckCircle2 } from "lucide-react";
@@ -8,11 +7,11 @@ interface Props {
   onClose: () => void;
 }
 
-const ViewTaskModal = forwardRef<HTMLDivElement, Props>(function ViewTaskModal({ task, onClose }, ref) {
+export default function ViewTaskModal({ task, onClose }: Props) {
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" ref={ref}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -64,6 +63,4 @@ const ViewTaskModal = forwardRef<HTMLDivElement, Props>(function ViewTaskModal({
       </div>
     </div>
   );
-});
-
-export default ViewTaskModal;
+}
