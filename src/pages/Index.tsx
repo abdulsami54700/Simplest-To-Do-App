@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { Task, loadTasks, saveTasks, createTask } from "@/lib/tasks";
 import { useNotifications } from "@/hooks/useNotifications";
+import { syncScheduledTask, markTaskCompleted, removeScheduledTask } from "@/lib/supabaseSync";
 import { useTheme } from "@/hooks/useTheme";
 import TaskCard from "@/components/TaskCard";
 import HistoryCard from "@/components/HistoryCard";
@@ -64,6 +65,10 @@ export default function Index() {
         saveTasks(next);
         return next;
       });
+      // Sync to backend for push notifications
+      if (task.scheduledTime) {
+        syncScheduledTask(task).catch(console.error);
+      }
     },
     []
   );
@@ -76,6 +81,7 @@ export default function Index() {
       saveTasks(next);
       return next;
     });
+    markTaskCompleted(id).catch(console.error);
   }, []);
 
   const handleDelete = useCallback((id: string) => {
@@ -84,6 +90,7 @@ export default function Index() {
       saveTasks(next);
       return next;
     });
+    removeScheduledTask(id).catch(console.error);
   }, []);
 
   const handleEdit = useCallback(
@@ -101,6 +108,11 @@ export default function Index() {
             : t
         );
         saveTasks(next);
+        // Sync updated task to backend
+        const updated = next.find((t) => t.id === id);
+        if (updated && updated.scheduledTime) {
+          syncScheduledTask(updated).catch(console.error);
+        }
         return next;
       });
     },
