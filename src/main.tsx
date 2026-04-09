@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Guard: unregister service workers in preview/iframe contexts
+// Guard: unregister NON-firebase service workers in preview/iframe contexts
 const isInIframe = (() => {
   try {
     return window.self !== window.top;
@@ -17,7 +17,12 @@ const isPreviewHost =
 
 if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((regs) => {
-    regs.forEach((r) => r.unregister());
+    regs.forEach((r) => {
+      // Don't unregister the Firebase messaging SW - it handles push notifications
+      if (!r.active?.scriptURL?.includes("firebase-messaging-sw")) {
+        r.unregister();
+      }
+    });
   });
 }
 
