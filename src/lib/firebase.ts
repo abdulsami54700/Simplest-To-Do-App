@@ -31,17 +31,32 @@ function getMessagingInstance(): Messaging | null {
 export async function requestFCMToken(): Promise<string | null> {
   try {
     const permission = await Notification.requestPermission();
+    console.log("[FCM] Notification permission:", permission);
     if (permission !== "granted") {
-      console.log("Notification permission denied");
+      console.log("[FCM] Notification permission denied");
       return null;
     }
 
     const msg = getMessagingInstance();
-    if (!msg) return null;
+    if (!msg) {
+      console.warn("[FCM] Messaging instance not available");
+      return null;
+    }
 
-    // Wait for service worker registration
-    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    await navigator.serviceWorker.ready;
+    // Register the Firebase messaging service worker
+    let registration: ServiceWorkerRegistration;
+    try {
+      registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+        scope: "/firebase-cloud-messaging-push-scope",
+      });
+      console.log("[FCM] Service worker registered:", registration.scope);
+      // Wait for the SW to be ready
+      await navigator.serviceWorker.ready;
+      console.log("[FCM] Service worker ready");
+    } catch (swErr) {
+      console.error("[FCM] Service worker registration failed:", swErr);
+      return null;
+    }
 
     const token = await getToken(msg, {
       vapidKey: VAPID_KEY,
@@ -50,11 +65,13 @@ export async function requestFCMToken(): Promise<string | null> {
 
     if (token) {
       localStorage.setItem("fcm_token", token);
-      console.log("FCM Token:", token);
+      console.log("[FCM] Token obtained:", token.slice(0, 20) + "...");
+    } else {
+      console.warn("[FCM] No token returned");
     }
     return token;
   } catch (err) {
-    console.error("FCM token error:", err);
+    console.error("[FCM] Token error:", err);
     return null;
   }
 }
@@ -62,7 +79,10 @@ export async function requestFCMToken(): Promise<string | null> {
 export function onForegroundMessage(callback: (payload: any) => void) {
   const msg = getMessagingInstance();
   if (!msg) return () => {};
-  return onMessage(msg, callback);
+  return onMessage(msg, (payload) => {
+    console.log("[FCM] Foreground message received:", payload);
+    callback(payload);
+  });
 }
 
 export function getStoredFCMToken(): string | null {
