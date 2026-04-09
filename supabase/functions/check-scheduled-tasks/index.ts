@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.102.1";
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.102.1/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,9 +16,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get Firebase service account
     const serviceAccountJson = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
     if (!serviceAccountJson) {
+      console.error("Missing FIREBASE_SERVICE_ACCOUNT secret");
       return new Response(JSON.stringify({ error: "Missing FIREBASE_SERVICE_ACCOUNT" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -21,6 +26,7 @@ Deno.serve(async (req) => {
 
     const serviceAccount = JSON.parse(serviceAccountJson);
     const now = Date.now();
+    console.log(`[check-scheduled-tasks] Running at ${now} (${new Date(now).toISOString()})`);
 
     // Find due tasks that haven't been notified
     const { data: dueTasks, error: taskError } = await supabase
@@ -31,10 +37,13 @@ Deno.serve(async (req) => {
       .lte("scheduled_time", now);
 
     if (taskError) {
+      console.error("Task query error:", taskError);
       return new Response(JSON.stringify({ error: taskError.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`[check-scheduled-tasks] Found ${dueTasks?.length ?? 0} due tasks`);
 
     if (!dueTasks || dueTasks.length === 0) {
       return new Response(JSON.stringify({ message: "No due tasks", checked_at: now }), {
@@ -48,19 +57,25 @@ Deno.serve(async (req) => {
       .select("token");
 
     if (tokenError || !tokens || tokens.length === 0) {
+      console.log("No FCM tokens found", tokenError);
       return new Response(JSON.stringify({ error: "No FCM tokens found" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    console.log(`[check-scheduled-tasks] Found ${tokens.length} FCM tokens`);
+
     // Get OAuth2 access token for FCM v1 API
     const accessToken = await getAccessToken(serviceAccount);
     const projectId = serviceAccount.project_id;
+    console.log(`[check-scheduled-tasks] Got access token for project ${projectId}`);
 
     let sent = 0;
     const errors: string[] = [];
 
     for (const task of dueTasks) {
+      console.log(`[check-scheduled-tasks] Processing task: ${task.task_id} - ${task.title} (scheduled: ${task.scheduled_time})`);
+      
       for (const { token } of tokens) {
         try {
           const res = await fetch(
@@ -92,31 +107,42 @@ Deno.serve(async (req) => {
 
           if (res.ok) {
             sent++;
+            console.log(`[check-scheduled-tasks] Sent notification for task ${task.task_id}`);
           } else {
             const errBody = await res.text();
+            console.error(`[check-scheduled-tasks] FCM error for token ${token.slice(0, 10)}...: ${errBody}`);
             errors.push(`Token ${token.slice(0, 10)}...: ${errBody}`);
-            // If token is invalid, remove it
             if (res.status === 404 || res.status === 400) {
               await supabase.from("fcm_tokens").delete().eq("token", token);
             }
           }
         } catch (e) {
+          console.error(`[check-scheduled-tasks] Send error:`, e);
           errors.push(`Send error: ${(e as Error).message}`);
         }
       }
 
       // Mark task as notified
-      await supabase
+      const { error: updateError } = await supabase
         .from("scheduled_tasks")
         .update({ notified: true })
         .eq("task_id", task.task_id);
+      
+      if (updateError) {
+        console.error(`[check-scheduled-tasks] Failed to mark notified:`, updateError);
+      } else {
+        console.log(`[check-scheduled-tasks] Marked task ${task.task_id} as notified`);
+      }
     }
 
-    return new Response(
-      JSON.stringify({ sent, tasks_processed: dueTasks.length, errors }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const result = { sent, tasks_processed: dueTasks.length, errors };
+    console.log(`[check-scheduled-tasks] Result:`, JSON.stringify(result));
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
+    console.error("[check-scheduled-tasks] Unexpected error:", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -143,7 +169,6 @@ async function getAccessToken(serviceAccount: {
   const payloadB64 = base64url(encoder.encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  // Import the private key
   const pemContents = serviceAccount.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
@@ -167,7 +192,6 @@ async function getAccessToken(serviceAccount: {
   const signatureB64 = base64url(new Uint8Array(signature));
   const jwt = `${unsignedToken}.${signatureB64}`;
 
-  // Exchange JWT for access token
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
